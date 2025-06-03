@@ -16,5 +16,6 @@
     "noEmit": true,
   },
   "include": ["src", "global.d.ts"],
+  "exclude": ["src/**/__tests__/**/*", "src/**/*.test.ts", "src/**/*.spec.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

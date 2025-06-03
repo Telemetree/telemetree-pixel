@@ -18,6 +18,7 @@ import { BaseEvent, Transport } from '../types';
 import { createEvent } from '../utils/create-event';
 import {Logger} from "../utils/logger";
 import {TrackGroups} from "../setup/trackGroups";
+import { sanitizeEventName, sanitizeElementText, sanitizeEventProperties } from '../helpers/text.helper';
 export class EventBuilder implements IEventBuilder {
   protected transport: Transport | null = null;
   protected config: TwaAnalyticsConfig | null = null;
@@ -126,8 +127,8 @@ export class EventBuilder implements IEventBuilder {
           }
 
           // Get the most relevant text content
-          const targetText = (event.target as HTMLElement)?.innerText?.trim() || '';
-          const elementText = trackableElement.innerText?.trim() || '';
+          const targetText = sanitizeElementText(event.target as HTMLElement);
+          const elementText = sanitizeElementText(trackableElement);
 
           // Prefer the more specific text if available
           customProperties['text'] = targetText || elementText;
@@ -140,7 +141,7 @@ export class EventBuilder implements IEventBuilder {
           }
 
           this.track(
-            `${DEFAULT_SYSTEM_EVENT_PREFIX} ${EventType.Click}${DEFAULT_SYSTEM_EVENT_DATA_SEPRARTOR}${customProperties['text']}`,
+            `${DEFAULT_SYSTEM_EVENT_PREFIX} ${EventType.Click}${DEFAULT_SYSTEM_EVENT_DATA_SEPRARTOR}${sanitizeEventName(customProperties['text'])}`,
             customProperties,
           );
         }
@@ -165,9 +166,15 @@ export class EventBuilder implements IEventBuilder {
       throw new Error('Event name is not set.');
     }
 
+    // Sanitize event name to remove newlines and normalize whitespace
+    const sanitizedEventName = sanitizeEventName(eventName);
+    
+    // Sanitize event properties to remove newlines from string values
+    const sanitizedEventProperties = sanitizeEventProperties(eventProperties);
+
     if (!this.data.user?.id) {
       console.error(
-        `Event ${eventName} is not tracked because user is not set.`,
+        `Event ${sanitizedEventName} is not tracked because user is not set.`,
       );
       return;
     }
@@ -185,7 +192,7 @@ export class EventBuilder implements IEventBuilder {
     const paramsString = Object.keys(paramsObj).length === 0 ? "" : Object.keys(paramsObj).map(key => `${key}: ${paramsObj[key]}`).join(', ');;
 
     const event = createEvent(
-      eventName,
+      sanitizedEventName,
       {
         username: this.data.user?.username || '',
         firstName: this.data.user.first_name,
@@ -196,7 +203,7 @@ export class EventBuilder implements IEventBuilder {
       {
         startParameter: this.data.start_param || paramsString,
         path: document.location.pathname,
-        params: eventProperties,
+        params: sanitizedEventProperties,
       },
       this.data.user?.id.toString(),
       this.data.user?.language_code,
@@ -204,8 +211,8 @@ export class EventBuilder implements IEventBuilder {
       this.data.chat_type || 'N/A',
       this.data.chat_instance || '0',
       getCurrentUTCTimestamp(),
-      eventName.startsWith(DEFAULT_SYSTEM_EVENT_PREFIX),
-      eventProperties.wallet || undefined,
+      sanitizedEventName.startsWith(DEFAULT_SYSTEM_EVENT_PREFIX),
+      sanitizedEventProperties.wallet || undefined,
       this.sessionIdentifier || undefined,
     );
 
